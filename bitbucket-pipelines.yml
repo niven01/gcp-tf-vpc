@@ -1,0 +1,49 @@
+image: hashicorp/terraform:0.15.0
+definitions:
+  gcpValidate: &vpcBasicValidate
+    name: Validate VPC Basic test
+    script:
+      - cd tests/basic
+      - terraform fmt -recursive
+      - export TF_VAR_PROJECT_ID=$project_id
+      - terraform init -input=false
+      - terraform validate
+      - tar -czf "terraform-$BITBUCKET_COMMIT.tar.gz" .terraform
+      - echo $BITBUCKET_COMMIT
+    artifacts:
+      - tests/basic/terraform-*
+  gcpPlan: &vpcBasicPlan
+    name: Plan VPC Basic test
+    script:
+      - echo $GCLOUD_SERVICE_KEY | base64 -d > /tmp/gcloud-service-key.json
+      - cd tests/basic
+      - tar -xzf "terraform-$BITBUCKET_COMMIT.tar.gz"
+      - export TF_VAR_PROJECT_ID=$project_id
+      - terraform init -input=false
+      - terraform plan -var="project_id=$project_id"
+  gcpApply: &vpcBasicApply
+    name: Apply VPC Basic test
+    script:
+      - echo $GCLOUD_SERVICE_KEY | base64 -d > /tmp/gcloud-service-key.json
+      - cd tests/basic
+      - terraform init -input=false
+      - terraform apply -var="project_id=$project_id" -auto-approve
+  gcpDestroy: &vpcBasicDestroy
+    name: Destroy VPC Basic test
+    script:
+      - echo $GCLOUD_SERVICE_KEY | base64 -d > /tmp/gcloud-service-key.json
+      - cd tests/basic
+      - terraform init -input=false
+      - terraform destroy -var="project_id=$project_id" -auto-approve
+  gcpPassed: &passedTests
+    name: Passed
+    script:
+      - echo "Pipeline has passed test, ready to merge to master"
+pipelines:
+  pull-requests:
+    '**':
+      - step: *vpcBasicValidate
+      - step: *vpcBasicPlan
+      - step: *vpcBasicApply
+      - step: *vpcBasicDestroy
+      - step: *passedTests
